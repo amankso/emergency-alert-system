@@ -44,4 +44,6 @@ public class AlertEntity {
     private AlertStatusEnum status = AlertStatusEnum.PENDING;
 
 
+    private String responseUrlToken; // unique token per contact
+
 }

@@ -19,4 +19,8 @@ public class UserDTO {
     @NotBlank(message = "Mobile number is required")
     @Pattern(regexp = "^[6-9]\\d{9}$", message = "Invalid Indian mobile number")
     private String mobileNumber;
+
+    private boolean isVerified;
+    private String sessionToken;
+
 }

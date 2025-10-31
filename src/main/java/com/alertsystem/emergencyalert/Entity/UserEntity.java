@@ -29,6 +29,9 @@ public class UserEntity {
     private LocalDateTime createdDate;
     private boolean isVerified;
 
+    @Column(name = "session_token", unique = true)
+    private String sessionToken;          // random token generated after login
+
     @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ContactEntity> contacts;
 

@@ -22,4 +22,6 @@ public class AlertDTO {
 
     private String mapUrl;
 
+    private String responseUrlToken;
+
 }

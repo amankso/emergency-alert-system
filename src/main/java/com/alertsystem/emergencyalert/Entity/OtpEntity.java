@@ -24,4 +24,5 @@ public class OtpEntity {
     private LocalDateTime expiresAt;
     private boolean isVerified;
 
+    private int otp_request_count;
 }
