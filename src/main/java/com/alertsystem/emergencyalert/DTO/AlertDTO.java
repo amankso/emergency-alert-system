@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -22,6 +24,8 @@ public class AlertDTO {
 
     private String mapUrl;
 
-    private String responseUrlToken;
+    private String responseUrl;
+
+    private LocalDateTime alertTimestamp;
 
 }

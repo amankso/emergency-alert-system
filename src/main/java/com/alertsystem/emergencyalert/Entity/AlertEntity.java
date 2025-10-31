@@ -22,11 +22,14 @@ public class AlertEntity {
     private Long id;
     private String name;
     private String mobileNumber;
+
+    @Column(name = "custom_message", length = 500)
     private String customMessage;
 
     private Double latitude;
     private Double longitude;
 
+    @Column(name = "map_url")
     private String mapUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -43,7 +46,10 @@ public class AlertEntity {
     @Enumerated(EnumType.STRING)
     private AlertStatusEnum status = AlertStatusEnum.PENDING;
 
+    @Column(name = "response_url")
+    private String responseUrl; // frontend response URL
 
-    private String responseUrlToken; // unique token per contact
+    @Column(name = "alert_timestamp")
+    private LocalDateTime alertTimestamp;
 
 }

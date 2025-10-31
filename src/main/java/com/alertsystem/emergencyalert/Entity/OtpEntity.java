@@ -21,7 +21,10 @@ public class OtpEntity {
     @Column(nullable = false)
     private String mobileNumber;
     private String otp;
-    private LocalDateTime expiresAt;
+
+    @Column(name = "expiry_time")
+    private LocalDateTime expiryTime;
+
     private boolean isVerified;
 
     private int otp_request_count;

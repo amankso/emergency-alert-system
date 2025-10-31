@@ -27,6 +27,8 @@ public class UserEntity {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdDate;
+
+    @Column(name = "is_verified")
     private boolean isVerified;
 
     @Column(name = "session_token", unique = true)
