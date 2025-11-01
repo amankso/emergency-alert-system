@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "otps")
 @Data
 @Builder
 @AllArgsConstructor
@@ -18,16 +19,22 @@ public class OtpEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false)
+
+    @Column(nullable = false, length = 15)
     private String mobileNumber;
+
+    @Column(nullable = false, length = 6)
     private String otp;
 
-    @Column(name = "expiry_time")
+    @Column(nullable = false)
     private LocalDateTime expiryTime;
 
-    private boolean isVerified;
+    @Column(nullable = false)
+    private boolean verified;
 
+    @Column(nullable = false)
     private int otpRequestCount;
 
+    @Column(nullable = false)
     private LocalDateTime firstRequestAt;
 }

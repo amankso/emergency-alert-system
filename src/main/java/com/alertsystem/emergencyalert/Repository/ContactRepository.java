@@ -11,6 +11,8 @@ public interface ContactRepository extends JpaRepository<ContactEntity, Long> {
 
     List<ContactEntity> findAllByUserEntity(UserEntity userEntity);
 
+    Optional<ContactEntity> findByMobileNumber(String mobileNumber);
+
     boolean existsByUserEntityAndMobileNumber(UserEntity userEntity, String mobileNumber);
     // → prevents adding duplicate contacts.
 

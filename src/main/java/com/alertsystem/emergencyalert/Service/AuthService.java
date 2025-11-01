@@ -1,16 +1,16 @@
 package com.alertsystem.emergencyalert.Service;
 
 import com.alertsystem.emergencyalert.Entity.UserEntity;
+import com.alertsystem.emergencyalert.Repository.UserRepository;
 import com.alertsystem.emergencyalert.exception.BadRequestException;
 import com.alertsystem.emergencyalert.exception.ResourceNotFoundException;
-import com.alertsystem.emergencyalert.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -21,61 +21,93 @@ public class AuthService {
     private final OtpService otpService;
     private final TwilioService twilioService;
 
-    // send signup or login OTP
+    /** 🔹 Send OTP for signup (new user registration) */
     @Transactional
     public void sendOtpForSignup(String username, String mobileNumber) {
-        if (mobileNumber == null || mobileNumber.isBlank()) throw new BadRequestException("mobile required");
-        userRepository.findByMobileNumber(mobileNumber).ifPresent(u -> {
-            if (Boolean.TRUE.equals(u.isVerified())) throw new BadRequestException("User already exists");
+        validateMobile(mobileNumber);
+
+        // If user exists & verified => already registered
+        userRepository.findByMobileNumber(mobileNumber).ifPresent(user -> {
+            if (user.isVerified()) throw new BadRequestException("User already exists");
         });
 
+        // Generate & save OTP (via OtpService)
         String otp = otpService.generateOtp(mobileNumber);
-        String message = String.format("Your OTP for EmergencyAlert is %s. Expires in 5 minutes.", otp);
-        twilioService.sendSms(mobileNumber, message);
+        twilioService.sendSms(mobileNumber, "Your OTP for EmergencyAlert signup is " + otp + ". Expires in 5 minutes.");
+
+        log.info("Signup OTP sent to {}", mobileNumber);
     }
 
+    /** 🔹 Verify OTP (for both signup & login) and create session */
     @Transactional
-    public AuthResult verifyOtpAndCreateSession(String mobileNumber, String otp, String usernameIfNew) {
-        boolean ok = otpService.verifyOtp(mobileNumber, otp);
-        if (!ok) throw new BadRequestException("Invalid or expired OTP");
+    public AuthResult verifyOtpAndCreateSession(String mobile, String otp, String usernameIfNew) {
+        if (!otpService.verifyOtp(mobile, otp))
+            throw new BadRequestException("Invalid or expired OTP");
 
-        UserEntity user = userRepository.findByMobileNumber(mobileNumber).orElseGet(() -> {
-            UserEntity u = new UserEntity();
-            u.setMobileNumber(mobileNumber);
-            u.setUsername(usernameIfNew == null ? mobileNumber : usernameIfNew);
-            u.setVerified(true);
-            return userRepository.save(u);
-        });
+        // Fetch or create user
+        UserEntity user = userRepository.findByMobileNumber(mobile)
+                .orElseGet(() -> userRepository.save(UserEntity.builder()
+                        .mobileNumber(mobile)
+                        .username(usernameIfNew == null ? mobile : usernameIfNew)
+                        .createdDate(LocalDateTime.now())
+                        .isVerified(true)
+                        .build()
+                ));
 
-        // mark verified if not already
-        if (!Boolean.TRUE.equals(user.isVerified())) {
-            user.setVerified(true);
-        }
-
-        // generate session token
-        String token = UUID.randomUUID().toString();
-        user.setSessionToken(token);
-        user.setCreatedDate(user.getCreatedDate() == null ? LocalDateTime.now() : user.getCreatedDate());
+        // Mark verified & assign session token
+        user.setVerified(true);
+        user.setSessionToken(UUID.randomUUID().toString());
         userRepository.save(user);
 
-        log.info("User {} logged in (mobile={})", user.getUsername(), mobileNumber);
-        return new AuthResult(user.getId(), user.getUsername(), user.getMobileNumber(), token);
+        log.info("User {} logged in successfully", user.getUsername());
+        return new AuthResult(user.getId(), user.getUsername(), user.getMobileNumber(), user.getSessionToken());
     }
 
+    /** 🔹 Fetch user by session token (for authenticated requests) */
     public UserEntity getUserBySessionToken(String token) {
-        if (token == null || token.isBlank()) throw new BadRequestException("Token required");
+        if (token == null || token.isBlank()) throw new BadRequestException("Session token required");
         return userRepository.findBySessionToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid session token"));
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired session token"));
     }
 
+    /** 🔹 Logout (invalidate session) */
     @Transactional
     public void logout(String sessionToken) {
         UserEntity user = userRepository.findBySessionToken(sessionToken)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found"));
         user.setSessionToken(null);
         userRepository.save(user);
+        log.info("User {} logged out", user.getUsername());
     }
 
-    // small DTO
-    public static record AuthResult(Long userId, String username, String mobile, String sessionToken) {}
+    /** 🔹 Send OTP for login only */
+    @Transactional
+    public Map<String, Object> sendOtpForLogin(String mobileNumber) {
+        validateMobile(mobileNumber);
+
+        UserEntity user = userRepository.findByMobileNumber(mobileNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found. Please register first."));
+
+        String otp = otpService.generateOtp(mobileNumber);
+        twilioService.sendSms(mobileNumber, "Your OTP for EmergencyAlert login is " + otp + ". Expires in 5 minutes.");
+
+        log.info("Login OTP sent to {}", mobileNumber);
+
+        return Map.of(
+                "message", "OTP sent successfully",
+                "mobileNumber", mobileNumber,
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+    /** Helper compact model */
+    public record AuthResult(Long userId, String username, String mobile, String sessionToken) {}
+
+    /** Helper validation */
+    private void validateMobile(String mobile) {
+        if (mobile == null || mobile.isBlank())
+            throw new BadRequestException("Mobile number is required");
+        if (!mobile.matches("^(\\+91)?[6-9]\\d{9}$"))
+            throw new BadRequestException("Invalid mobile number format");
+    }
 }

@@ -22,9 +22,6 @@ public class AlertDTO {
     @NotNull(message = "Longitude is required")
     private Double longitude;
 
-    private String mapUrl;
-
-    private String responseUrl;
 
     private LocalDateTime alertTimestamp;
 

@@ -29,9 +29,6 @@ public class OtpService {
     @Transactional //telling Spring to run everything inside it as one atomic unit, anything fails rollback , commit on 100% success only
     //if same number enteredd and clcik for send otp at same time , or user clicked sentOtp double instantly , one will be blocked , no thread will be assigned to him
     public String generateOtp(String mobileNumber) {
-        if (mobileNumber == null || mobileNumber.isBlank()) {
-            throw new BadRequestException("Mobile number is required");
-        }
 
         // Find existing OTP entry or create new
         OtpEntity entity = otpRepository.findByMobileNumber(mobileNumber)

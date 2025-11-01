@@ -1,25 +1,25 @@
 package com.alertsystem.emergencyalert.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "alerts")
 public class AlertEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
     private String mobileNumber;
 
@@ -33,15 +33,17 @@ public class AlertEntity {
     private String mapUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"contacts"}) // 👈 ignore nested contacts when returning alert
     private UserEntity userEntity;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdDate;
 
-    @Column(columnDefinition = "jsonb")
-    private List<String> sentTo;
+    // Store recipient numbers as a JSON string (instead of JSONB)
+    @Column(name = "sent_to_json", columnDefinition = "TEXT")
+    private String sentToJson;
 
     @Enumerated(EnumType.STRING)
     private AlertStatusEnum status = AlertStatusEnum.PENDING;
@@ -51,5 +53,4 @@ public class AlertEntity {
 
     @Column(name = "alert_timestamp")
     private LocalDateTime alertTimestamp;
-
 }

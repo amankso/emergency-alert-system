@@ -1,11 +1,13 @@
 package com.alertsystem.emergencyalert.Entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 
 import java.time.LocalDateTime;
@@ -28,6 +30,9 @@ public class UserEntity {
     @Column(updatable = false)
     private LocalDateTime createdDate;
 
+    @UpdateTimestamp
+    private LocalDateTime updatedDate;
+
     @Column(name = "is_verified")
     private boolean isVerified;
 
@@ -35,6 +40,7 @@ public class UserEntity {
     private String sessionToken;          // random token generated after login
 
     @OneToMany(mappedBy = "userEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<ContactEntity> contacts;
 
 
