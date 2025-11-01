@@ -1,7 +1,7 @@
 package com.alertsystem.emergencyalert.Service;
 
 import com.alertsystem.emergencyalert.exception.SmsSendException;
-import com.twilio.Twilio;
+import com.twilio.Twilio;  //"Twilio" naam ka cheez ban gya
 import com.twilio.rest.api.v2010.account.Message;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -14,21 +14,21 @@ import java.util.List;
 @Slf4j
 public class TwilioService {
 
-    @Value("${twilio.account.sid:}")
+    @Value("${twilio.account.sid}")
     private String accountSid;
 
-    @Value("${twilio.auth.token:}")
+    @Value("${twilio.auth.token}")
     private String authToken;
 
-    @Value("${twilio.phone.number:}")
+    @Value("${twilio.phone.number}")
     private String fromPhoneNumber;
 
-    private volatile boolean configured = false;
+    private volatile boolean configured = false;  //is twilio configured for a valid account
 
     //at application startup , when TwilioService bean will be stored,this method will run instantly after storage .It will provide the twilio congurations (like from which twilio accunt i will be sending the sms)
     @PostConstruct
     public void init() {
-        if (accountSid != null && !accountSid.isBlank() && authToken != null && !authToken.isBlank()) {
+        if (accountSid != null && authToken != null) {
             Twilio.init(accountSid, authToken);
             configured = true;
             log.info("Twilio initialized");

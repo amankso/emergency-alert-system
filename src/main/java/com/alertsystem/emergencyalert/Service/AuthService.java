@@ -1,37 +1,81 @@
 package com.alertsystem.emergencyalert.Service;
 
-import com.alertsystem.emergencyalert.DTO.UserDTO;
-import com.alertsystem.emergencyalert.Entity.OtpEntity;
 import com.alertsystem.emergencyalert.Entity.UserEntity;
-import com.alertsystem.emergencyalert.Repository.OtpRepository;
+import com.alertsystem.emergencyalert.exception.BadRequestException;
+import com.alertsystem.emergencyalert.exception.ResourceNotFoundException;
 import com.alertsystem.emergencyalert.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Random;
-import java.util.random.RandomGenerator;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final OtpRepository otpRepository;
+    private final OtpService otpService;
     private final TwilioService twilioService;
 
-    //signup code , username and mobile number received
-    public UserEntity signup(UserDTO userDTO){
-        if(userRepository.existsByMobileNumber(userDTO.getMobileNumber())){
-            throw new RuntimeException("User already exists");
-        }
-        UserEntity userEntity = new UserEntity();
-        OtpEntity otpEntity = new OtpEntity();
-        otpEntity.setMobileNumber(userDTO.getMobileNumber());
-        otpEntity.setOtp(RandomUUID.Integer()); //4 digit code
+    // send signup or login OTP
+    @Transactional
+    public void sendOtpForSignup(String username, String mobileNumber) {
+        if (mobileNumber == null || mobileNumber.isBlank()) throw new BadRequestException("mobile required");
+        userRepository.findByMobileNumber(mobileNumber).ifPresent(u -> {
+            if (Boolean.TRUE.equals(u.isVerified())) throw new BadRequestException("User already exists");
+        });
 
-        userEntity.setMobileNumber(userDTO.getMobileNumber());
-        userEntity.setUsername(userDTO.getUsername());
-        userEntity.se
-
+        String otp = otpService.generateOtp(mobileNumber);
+        String message = String.format("Your OTP for EmergencyAlert is %s. Expires in 5 minutes.", otp);
+        twilioService.sendSms(mobileNumber, message);
     }
+
+    @Transactional
+    public AuthResult verifyOtpAndCreateSession(String mobileNumber, String otp, String usernameIfNew) {
+        boolean ok = otpService.verifyOtp(mobileNumber, otp);
+        if (!ok) throw new BadRequestException("Invalid or expired OTP");
+
+        UserEntity user = userRepository.findByMobileNumber(mobileNumber).orElseGet(() -> {
+            UserEntity u = new UserEntity();
+            u.setMobileNumber(mobileNumber);
+            u.setUsername(usernameIfNew == null ? mobileNumber : usernameIfNew);
+            u.setVerified(true);
+            return userRepository.save(u);
+        });
+
+        // mark verified if not already
+        if (!Boolean.TRUE.equals(user.isVerified())) {
+            user.setVerified(true);
+        }
+
+        // generate session token
+        String token = UUID.randomUUID().toString();
+        user.setSessionToken(token);
+        user.setCreatedDate(user.getCreatedDate() == null ? LocalDateTime.now() : user.getCreatedDate());
+        userRepository.save(user);
+
+        log.info("User {} logged in (mobile={})", user.getUsername(), mobileNumber);
+        return new AuthResult(user.getId(), user.getUsername(), user.getMobileNumber(), token);
+    }
+
+    public UserEntity getUserBySessionToken(String token) {
+        if (token == null || token.isBlank()) throw new BadRequestException("Token required");
+        return userRepository.findBySessionToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid session token"));
+    }
+
+    @Transactional
+    public void logout(String sessionToken) {
+        UserEntity user = userRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new ResourceNotFoundException("Session not found"));
+        user.setSessionToken(null);
+        userRepository.save(user);
+    }
+
+    // small DTO
+    public static record AuthResult(Long userId, String username, String mobile, String sessionToken) {}
 }

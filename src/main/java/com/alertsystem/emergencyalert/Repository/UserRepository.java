@@ -19,5 +19,6 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     void deleteByMobileNumber(String mobileNumber);
     // → optional cleanup route (e.g. if user re-registers)
 
+    Optional<UserEntity> findBySessionToken(String sessionToken);
 
 }

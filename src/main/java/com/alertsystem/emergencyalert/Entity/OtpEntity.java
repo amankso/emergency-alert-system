@@ -27,5 +27,7 @@ public class OtpEntity {
 
     private boolean isVerified;
 
-    private int otp_request_count;
+    private int otpRequestCount;
+
+    private LocalDateTime firstRequestAt;
 }
