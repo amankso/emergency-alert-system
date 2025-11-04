@@ -1,7 +1,7 @@
 package com.alertsystem.emergencyalert.Service;
 
 import com.alertsystem.emergencyalert.exception.SmsSendException;
-import com.twilio.Twilio;  //"Twilio" naam ka cheez ban gya
+import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +23,8 @@ public class TwilioService {
     @Value("${twilio.phone.number}")
     private String fromPhoneNumber;
 
-    private volatile boolean configured = false;  //is twilio configured for a valid account
+    private volatile boolean configured = false;
 
-    //at application startup , when TwilioService bean will be stored,this method will run instantly after storage .It will provide the twilio congurations (like from which twilio accunt i will be sending the sms)
     @PostConstruct
     public void init() {
         if (accountSid != null && authToken != null) {
@@ -33,16 +32,21 @@ public class TwilioService {
             configured = true;
             log.info("Twilio initialized");
         } else {
-            log.warn("Twilio not configured (missing credentials). TwilioService will not send real SMS.");
+            log.warn("Twilio not configured (missing credentials). Running in mock mode.");
         }
     }
 
-    //Basic sms sending , if not configured send to log else to actual number
     public void sendSms(String to, String body) {
+        // ensure proper +91 prefix for Indian numbers
+        if (!to.startsWith("+91")) {
+            to = "+91" + to;
+        }
+
         if (!configured) {
             log.info("[MOCK SMS] to={} body={}", to, body);
-            return; // mock mode — log only
+            return;
         }
+
         try {
             Message.creator(
                     new com.twilio.type.PhoneNumber(to),
@@ -56,7 +60,6 @@ public class TwilioService {
         }
     }
 
-    //to send to multiple contacts , send one by one , you cant message all at once as receipents might be from diff address so limited by twilio , thus you can use async (completablefuture) for less delay if contacts are more
     public void sendBulkSms(List<String> recipients, String body) {
         for (String r : recipients) {
             sendSms(r, body);

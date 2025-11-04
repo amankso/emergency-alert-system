@@ -107,7 +107,7 @@ public class AuthService {
     private void validateMobile(String mobile) {
         if (mobile == null || mobile.isBlank())
             throw new BadRequestException("Mobile number is required");
-        if (!mobile.matches("^(\\+91)?[6-9]\\d{9}$"))
+        if (!mobile.matches("^[6-9]\\d{9}$"))
             throw new BadRequestException("Invalid mobile number format");
     }
 }

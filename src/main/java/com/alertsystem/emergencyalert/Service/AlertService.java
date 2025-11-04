@@ -16,8 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -45,23 +46,24 @@ public class AlertService {
             throw new ResourceNotFoundException("No emergency contacts found for user");
         }
 
-        // Prepare static data
-        String mapUrl = buildGoogleMapsUrl(dto.getLatitude(), dto.getLongitude());
-
         // Create alert record
         AlertEntity alert = AlertEntity.builder()
                 .userEntity(user)
                 .latitude(dto.getLatitude())
                 .longitude(dto.getLongitude())
                 .customMessage(dto.getCustomMessage())
-                .mapUrl(mapUrl)
+                .mapUrl(buildGoogleMapsUrl(dto.getLatitude(), dto.getLongitude()))
                 .status(AlertStatusEnum.PENDING)
                 .alertTimestamp(LocalDateTime.now())
                 .build();
 
         alertRepository.save(alert);
 
-        // Send SMS to all contacts individually
+        // Track send results
+        List<String> sentNumbers = new ArrayList<>();
+        List<String> failedNumbers = new ArrayList<>();
+
+        // Send SMS to all contacts
         for (ContactEntity contact : contacts) {
             String responseUrl = AlertUrlUtil.buildResponseUrlForContact(
                     frontendBaseUrl, alert.getId(), contact.getMobileNumber()
@@ -70,24 +72,30 @@ public class AlertService {
             String message = buildAlertSms(
                     user.getUsername(),
                     dto.getCustomMessage(),
-                    mapUrl,
+                    alert.getMapUrl(),
                     responseUrl,
                     LocalDateTime.now()
             );
 
             try {
                 twilioService.sendSms(contact.getMobileNumber(), message);
-                log.info("Alert SMS sent to {}", contact.getMobileNumber());
+                log.info("✅ Alert SMS sent to {}", contact.getMobileNumber());
+                sentNumbers.add(contact.getMobileNumber());
             } catch (Exception ex) {
-                log.error("Failed to send SMS to {}: {}", contact.getMobileNumber(), ex.getMessage());
+                log.error("❌ Failed to send SMS to {}: {}", contact.getMobileNumber(), ex.getMessage());
+                failedNumbers.add(contact.getMobileNumber());
             }
         }
 
-        // Mark alert as sent
-        alert.setStatus(AlertStatusEnum.SENT);
-        alert.setSentToJson(objectMapper.writeValueAsString(
-                contacts.stream().map(ContactEntity::getMobileNumber).collect(Collectors.toList())
-        ));
+        // Determine final status
+        if (!sentNumbers.isEmpty()) {
+            alert.setStatus(AlertStatusEnum.SENT);
+        } else {
+            alert.setStatus(AlertStatusEnum.FAILED);
+        }
+
+        // Save which contacts were sent/failed
+        alert.setSentToJson(objectMapper.writeValueAsString(sentNumbers));
 
         return alertRepository.save(alert);
     }
@@ -111,7 +119,7 @@ public class AlertService {
         return String.format(
                 "🚨 Alert from %s:\n%s\n📍 %s\n⏰ %s\nRespond: %s",
                 username,
-                message,
+                (message == null || message.isBlank()) ? "No custom message provided." : message,
                 mapUrl,
                 timestamp,
                 responseUrl

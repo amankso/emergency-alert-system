@@ -13,4 +13,5 @@ public class AlertUrlUtil {
         String raw = alertId + ":" + contactPhone + ":" + System.currentTimeMillis();
         return Base64.getUrlEncoder().encodeToString(raw.getBytes());
     }
+
 }

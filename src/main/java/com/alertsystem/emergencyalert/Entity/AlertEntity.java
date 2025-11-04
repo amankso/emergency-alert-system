@@ -1,11 +1,14 @@
 package com.alertsystem.emergencyalert.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -34,8 +37,9 @@ public class AlertEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnoreProperties({"contacts"}) // 👈 ignore nested contacts when returning alert
+    @JsonIgnore
     private UserEntity userEntity;
+
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -53,4 +57,8 @@ public class AlertEntity {
 
     @Column(name = "alert_timestamp")
     private LocalDateTime alertTimestamp;
+
+    @Column(name = "nearby_police_stations", columnDefinition = "TEXT")
+    private String nearbyPoliceStations;
+
 }

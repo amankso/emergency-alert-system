@@ -18,8 +18,8 @@ public class UserDTO {
 
     @NotBlank(message = "Mobile number is required")
     @Pattern(
-            regexp = "^(\\+91)?[6-9]\\d{9}$",
-            message = "Invalid Indian mobile number"
+            regexp = "^[6-9]\\d{9}$",
+            message = "Invalid Indian mobile number — must be 10 digits and start with 6–9"
     )
     private String mobileNumber;
 
