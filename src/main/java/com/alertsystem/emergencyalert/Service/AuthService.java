@@ -1,6 +1,8 @@
 package com.alertsystem.emergencyalert.Service;
 
+import com.alertsystem.emergencyalert.DTO.PoliceLoginDTO;
 import com.alertsystem.emergencyalert.Entity.UserEntity;
+import com.alertsystem.emergencyalert.Entity.UserRole;
 import com.alertsystem.emergencyalert.Repository.UserRepository;
 import com.alertsystem.emergencyalert.exception.BadRequestException;
 import com.alertsystem.emergencyalert.exception.ResourceNotFoundException;
@@ -40,7 +42,7 @@ public class AuthService {
 
     /** 🔹 Verify OTP (for both signup & login) and create session */
     @Transactional
-    public AuthResult verifyOtpAndCreateSession(String mobile, String otp, String usernameIfNew) {
+    public AuthResult verifyOtpAndCreateSession(String mobile, String otp, String usernameIfNew, String role) {
         if (!otpService.verifyOtp(mobile, otp))
             throw new BadRequestException("Invalid or expired OTP");
 
@@ -57,11 +59,21 @@ public class AuthService {
         // Mark verified & assign session token
         user.setVerified(true);
         user.setSessionToken(UUID.randomUUID().toString());
+
+        // ⚡ Set role correctly
+        if (role != null && role.equalsIgnoreCase("POLICE_OFFICIAL")) {
+            user.setRole(UserRole.POLICE_OFFICIAL);
+        } else if(user.getRole() == null) {
+            // Default for new user
+            user.setRole(UserRole.NORMAL_USER);
+        }
+
         userRepository.save(user);
 
-        log.info("User {} logged in successfully", user.getUsername());
-        return new AuthResult(user.getId(), user.getUsername(), user.getMobileNumber(), user.getSessionToken());
+        log.info("User {} logged in successfully as {}", user.getUsername(), user.getRole());
+        return new AuthResult(user.getId(), user.getUsername(), user.getMobileNumber(), user.getSessionToken(), user.getRole());
     }
+
 
     /** 🔹 Fetch user by session token (for authenticated requests) */
     public UserEntity getUserBySessionToken(String token) {
@@ -101,7 +113,7 @@ public class AuthService {
     }
 
     /** Helper compact model */
-    public record AuthResult(Long userId, String username, String mobile, String sessionToken) {}
+    public record AuthResult(Long userId, String username, String mobile, String sessionToken, UserRole role) {}
 
     /** Helper validation */
     private void validateMobile(String mobile) {
@@ -110,4 +122,34 @@ public class AuthService {
         if (!mobile.matches("^[6-9]\\d{9}$"))
             throw new BadRequestException("Invalid mobile number format");
     }
+
+    @Transactional
+    public Map<String, Object> verifyPoliceCredentials(PoliceLoginDTO dto) {
+        UserEntity user = userRepository.findByMobileNumber(dto.getMobileNumber())
+                .orElseThrow(() -> new ResourceNotFoundException("Police not found"));
+
+        if (!user.getUsername().equalsIgnoreCase(dto.getUsername()))
+            throw new BadRequestException("Username mismatch");
+
+        if (user.getRole() != UserRole.POLICE_OFFICIAL)
+            throw new BadRequestException("Not authorized as police");
+
+        if (user.getSessionToken() == null || !user.getSessionToken().equals(dto.getSessionToken()))
+            throw new BadRequestException("Invalid session token");
+
+        // ✅ if all checks pass, send OTP
+        String otp = otpService.generateOtp(dto.getMobileNumber());
+        twilioService.sendSms(dto.getMobileNumber(),
+                "Your OTP for EmergencyAlert (Police Login) is " + otp + ". Expires in 5 minutes.");
+
+        log.info("OTP sent successfully to police {}", dto.getMobileNumber());
+
+        return Map.of(
+                "message", "OTP sent successfully",
+                "mobileNumber", dto.getMobileNumber(),
+                "timestamp", LocalDateTime.now()
+        );
+    }
+
+
 }

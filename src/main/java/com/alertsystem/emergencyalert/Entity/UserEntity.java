@@ -43,5 +43,10 @@ public class UserEntity {
     @JsonManagedReference
     private List<ContactEntity> contacts;
 
+    @Column(columnDefinition = "TEXT[]")
+    private List<String> predefinedMessages; // Up to 3 messages
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.NORMAL_USER;
 }

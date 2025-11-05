@@ -27,4 +27,6 @@ public class UserDTO {
     private boolean isVerified;
     private String sessionToken;
 
+    private String role;
+
 }

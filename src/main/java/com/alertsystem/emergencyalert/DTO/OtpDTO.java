@@ -22,4 +22,6 @@ public class OtpDTO {
 
     // Optional username – used when new user registers
     private String username;
+
+    private String role;
 }

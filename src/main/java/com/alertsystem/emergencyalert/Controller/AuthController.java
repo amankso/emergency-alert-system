@@ -1,6 +1,7 @@
 package com.alertsystem.emergencyalert.Controller;
 
 import com.alertsystem.emergencyalert.DTO.OtpDTO;
+import com.alertsystem.emergencyalert.DTO.PoliceLoginDTO;
 import com.alertsystem.emergencyalert.DTO.UserDTO;
 import com.alertsystem.emergencyalert.Service.AuthService;
 import jakarta.validation.Valid;
@@ -27,17 +28,32 @@ public class AuthController {
     // Verify OTP + create session
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpDTO otpDTO) {
-        return ResponseEntity.ok(authService.verifyOtpAndCreateSession(
-                otpDTO.getMobileNumber(), otpDTO.getOtp(), otpDTO.getUsername()
-        ));
+        return ResponseEntity.ok(
+                authService.verifyOtpAndCreateSession(
+                        otpDTO.getMobileNumber(),
+                        otpDTO.getOtp(),
+                        otpDTO.getUsername(),
+                        (otpDTO.getRole() == null || otpDTO.getRole().trim().isEmpty())
+                                ? "USER"
+                                : otpDTO.getRole().trim().toUpperCase()
+                )
+        );
     }
 
     // Login user (mobile + OTP)
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody OtpDTO otpDTO) {
-        return ResponseEntity.ok(authService.verifyOtpAndCreateSession(
-                otpDTO.getMobileNumber(), otpDTO.getOtp(), null
-        ));
+        return ResponseEntity.ok(
+                authService.verifyOtpAndCreateSession(
+                        otpDTO.getMobileNumber(),
+                        otpDTO.getOtp(),
+                        null,
+                        (otpDTO.getRole() == null || otpDTO.getRole().trim().isEmpty())
+                                ? "USER"
+                                : otpDTO.getRole().trim().toUpperCase()
+                )
+        );
+
     }
 
     // Logout user
@@ -52,5 +68,12 @@ public class AuthController {
         String mobileNumber = request.get("mobileNumber");
         return ResponseEntity.ok(authService.sendOtpForLogin(mobileNumber));
     }
+
+    @PostMapping("/verify-police")
+    public ResponseEntity<?> verifyPoliceCredentials(@RequestBody PoliceLoginDTO dto) {
+        return ResponseEntity.ok(authService.verifyPoliceCredentials(dto));
+    }
+
+
 
 }

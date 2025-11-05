@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -26,12 +28,30 @@ public class UserService {
                 .build();
     }
 
-    @Transactional
-    public void deleteUser(String sessionToken) {
+    @Transactional(readOnly = true)
+    public List<String> getPredefinedMessages(String sessionToken) {
         UserEntity user = userRepository.findBySessionToken(sessionToken)
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired session token"));
-        userRepository.delete(user);
+        return user.getPredefinedMessages();
     }
+
+    @Transactional
+    public void updatePredefinedMessages(String sessionToken, List<String> messages) {
+        if (messages.size() > 3) {
+            throw new IllegalArgumentException("You can only save up to 3 predefined messages.");
+        }
+
+        UserEntity user = userRepository.findBySessionToken(sessionToken)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired session token"));
+
+        user.setPredefinedMessages(messages);
+        userRepository.save(user);
+    }
+    @Transactional
+    public void deleteUser(Long userId) {
+        userRepository.deleteById(userId);
+    }
+
 
     public UserEntity getById(Long id) {
         return userRepository.findById(id)

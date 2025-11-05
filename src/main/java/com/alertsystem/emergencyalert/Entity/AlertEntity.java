@@ -61,4 +61,7 @@ public class AlertEntity {
     @Column(name = "nearby_police_stations", columnDefinition = "TEXT")
     private String nearbyPoliceStations;
 
+    @Column(name = "region")
+    private String region; // e.g., "Ghaziabad, Uttar Pradesh"
+
 }

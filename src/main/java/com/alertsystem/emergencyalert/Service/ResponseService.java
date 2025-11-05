@@ -58,7 +58,7 @@ public class ResponseService {
 
         // Update alert status if first response received
         if (alert.getStatus() == AlertStatusEnum.PENDING || alert.getStatus() == AlertStatusEnum.SENT) {
-            alert.setStatus(AlertStatusEnum.RESPONDED);
+            alert.setStatus(AlertStatusEnum.RESOLVED);
             alertRepository.save(alert);
         }
 

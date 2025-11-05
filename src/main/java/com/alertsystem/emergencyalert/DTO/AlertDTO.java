@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class AlertDTO {
 
+    private Long id;
+
     private String customMessage;
 
     @NotNull(message = "Latitude is required")

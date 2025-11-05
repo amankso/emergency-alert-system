@@ -1,13 +1,22 @@
 package com.alertsystem.emergencyalert.Controller;
 
+import com.alertsystem.emergencyalert.DTO.PoliceAlertDTO;
 import com.alertsystem.emergencyalert.Entity.AlertEntity;
-import com.alertsystem.emergencyalert.Entity.AlertStatusEnum;
+import com.alertsystem.emergencyalert.Entity.UserEntity;
+import com.alertsystem.emergencyalert.Entity.UserRole;
+import com.alertsystem.emergencyalert.Service.AlertService;
+import com.alertsystem.emergencyalert.Service.AuthService;
 import com.alertsystem.emergencyalert.Service.PoliceStationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/police")
@@ -15,25 +24,67 @@ import java.util.List;
 public class PoliceStationController {
 
     private final PoliceStationService policeStationService;
+    private final AuthService authService;
+    private final AlertService alertService;
 
-    //  Fetch all alerts by status (e.g. PENDING, RESOLVED)
-    @GetMapping("/alerts/{status}")
-    public ResponseEntity<List<AlertEntity>> getAlertsByStatus(@PathVariable("status") AlertStatusEnum status) {
-        return ResponseEntity.ok(policeStationService.getAlertsByStatus(status));
+    @PostMapping("/nearest")
+    public ResponseEntity<?> getNearestStations(
+            @RequestHeader("sessionToken") String sessionToken,
+            @RequestBody Map<String, Double> coords) {
+
+        UserEntity user = authService.getUserBySessionToken(sessionToken);
+
+        Double lat = coords.get("latitude");
+        Double lng = coords.get("longitude");
+
+        if (lat == null || lng == null) {
+            return ResponseEntity.badRequest().body("Latitude and longitude required");
+        }
+
+        var nearbyStations = policeStationService.findNearestStations(lat, lng);
+
+        if (nearbyStations.isEmpty()) {
+            return ResponseEntity.ok(Map.of("message", "No nearby stations within 10 km"));
+        }
+
+        // ✅ Include latitude and longitude in the response
+        var response = nearbyStations.stream().map(station -> Map.of(
+                "stationName", station.getStationName(),
+                "contactNumber", station.getContactNumber(),
+                "latitude", station.getLatitude(),
+                "longitude", station.getLongitude(),
+                "mapUrl", "https://www.google.com/maps?q=" +
+                        station.getLatitude() + "," + station.getLongitude()
+        )).collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
 
-    //  Update alert with nearest police stations
-    @PostMapping("/update-stations/{alertId}")
-    public ResponseEntity<AlertEntity> updateNearbyStations(
-            @PathVariable Long alertId,
-            @RequestParam double lat,
-            @RequestParam double lon) {
-        return ResponseEntity.ok(policeStationService.updateAlertWithNearbyStations(alertId, lat, lon));
+
+
+    @GetMapping("/alerts")
+    public ResponseEntity<Page<PoliceAlertDTO>> getFilteredAlerts(
+            @RequestHeader("sessionToken") String sessionToken,
+            @RequestParam(required = false) String mobileNumber,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String region
+
+    ) {
+        UserEntity user = authService.getUserBySessionToken(sessionToken);
+
+        if(user.getRole() != UserRole.POLICE_OFFICIAL){
+            return ResponseEntity.status(403).build();
+        }
+
+        Page<PoliceAlertDTO> alerts = alertService.getAlertsForPolice(mobileNumber, status, from, to, page,region);
+        return ResponseEntity.ok(alerts);
     }
 
-    // Search alerts by police station keyword
-    @GetMapping("/alerts/search")
-    public ResponseEntity<List<AlertEntity>> searchAlerts(@RequestParam String keyword) {
-        return ResponseEntity.ok(policeStationService.searchAlertsByStationKeyword(keyword));
-    }
+
+
+
+
 }
